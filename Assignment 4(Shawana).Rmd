@@ -1,0 +1,429 @@
+---
+title: "Assignment4"
+output: html_document
+date: "2023-11-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+install.packages("arules")
+library(arules)
+```
+
+
+
+```{r}
+data("Groceries")
+summary(Groceries)
+#out25
+```
+
+1.
+```{r}
+?Groceries
+```
+
+Class of "Groceries": The dataset is a transactions object, which is an itemMatrix in sparse format. This is a specific format used in the arules package to efficiently handle transaction data.
+
+Number of Rows and Columns:
+
+Rows: The dataset contains 9,835 rows. Each row represents a transaction.
+Columns: There are 169 columns in the dataset, each representing a different item available for purchase.
+
+2.
+```{r}
+library(ggplot2)
+itemFrequencyTable <- itemFrequency(Groceries, type = "absolute")
+itemFrequencyDF <- data.frame(Item = names(itemFrequencyTable), Frequency = itemFrequencyTable)
+
+itemFrequencyDF$SupportRate <- (itemFrequencyDF$Frequency / length(Groceries)) * 100
+
+filteredItems <- subset(itemFrequencyDF, SupportRate > 7.25)
+
+ggplot(filteredItems, aes(x = reorder(Item, -SupportRate), y = SupportRate)) +
+  geom_bar(stat = "identity", fill = "skyblue1") + 
+  coord_flip() + 
+  labs(title = "Item Frequency with Support > 7.25%", x = "Item", y = "Support Rate (%)") +
+  theme_minimal()
+```
+
+3.
+```{r}
+rules <- apriori(Groceries, parameter = list(supp = 0.001, conf = 0.1))
+```
+
+
+```{r}
+pastry_rules <- subset(rules, items %in% "pastry")
+```
+
+```{r}
+if (length(subset(pastry_rules, lhs %pin% "pastry")) > 0) {
+    pastry_lhs <- subset(pastry_rules, lhs %pin% "pastry")[1]
+    print(pastry_lhs)
+} else {
+    print("No rule found with 'pastry' on the LHS")
+}
+
+if (length(subset(pastry_rules, rhs %pin% "pastry")) > 0) {
+    pastry_rhs <- subset(pastry_rules, rhs %pin% "pastry")[1]
+    print(pastry_rhs)
+} else {
+    print("No rule found with 'pastry' on the RHS")
+}
+```
+
+Rule with "Pastry" on the LHS:
+
+Support: This number tells us how often "pastry" and the items on the right-hand side of the rule appear together in the dataset.
+Coverage: This shows how often "pastry" appears in the dataset.
+Confidence: This indicates how likely the items on the right-hand side are bought when "pastry" is bought.
+Lift: If this number is greater than 1, it means people are more likely to buy the items on the right-hand side when they buy "pastry" than they would if these purchases were independent.
+Rule with "Pastry" on the RHS:
+
+The components are interpreted similarly, but now we're looking at cases where the presence of other items increases the likelihood of "pastry" being bought.
+
+4.
+For a store like Star Market, these association rules, particularly those involving frequently purchased items like "pastry," can provide valuable insights into shopping patterns and customer behavior. The store could use this information to optimize product placement, design targeted marketing campaigns, or create effective cross-selling strategies. For instance, if a rule shows that customers who buy "pastry" often also buy "coffee," the store might place these items near each other to encourage additional purchases, or offer bundled discounts on these items to increase sales. This kind of data-driven approach can enhance the shopping experience for customers while also boosting the store's revenue and efficiency.
+
+5.
+```{r}
+install.packages("arulesViz")
+```
+
+```{r}
+library(arulesViz)
+```
+
+
+```{r}
+selected_pastry_rules <- head(pastry_rules, 3)
+
+plot(selected_pastry_rules, method = "scatterplot", measure = c("support", "confidence"), shading = "lift")
+```
+All three rules have relatively low support (close to 0.001), indicating that the combinations of items occur infrequently within all transactions.
+The confidence levels vary, with one rule showing a notably higher confidence than the others, suggesting that when the item(s) on the left-hand side (LHS) of this rule are bought, there's a relatively higher likelihood that "pastry" is also purchased.
+The lift values differ, with one rule having a lift significantly higher than 1, as shown by the darker color. This means that the presence of the LHS items in the transaction has a strong positive influence on the purchase of "pastry".
+
+6.
+```{r}
+selected_pastry_rules <- head(pastry_rules, 3)
+
+plot(selected_pastry_rules, method = "graph", engine = "htmlwidget")
+```
+This graph is different from the scatter plot because it allows for interactive exploration of the rules. I can hover over the items and rules to see more details, and can also zoom in and out or drag the plot to reposition it, which is not possible with a static scatter plot.
+
+**Task 2: Classification Tree**
+
+```{r}
+billionaires <- read.csv('C://Users/maxma/Documents/AD 699/Assignment 4/forbes_2640_billionaires.csv')
+
+head(billionaires)
+
+```
+The dataset is a collection of data points about individuals who have been recognized as billionaires by Forbes. It contains details such as their rankings, names, net worth, age, country of residence, source of wealth, and industry. Additional personal details such as education, marital status, and the number of children are also included.
+
+3.
+```{r}
+str(billionaires)
+```
+```{r}
+
+billionaires$industry <- factor(billionaires$industry)
+
+str(billionaires$industry)
+
+```
+4.
+
+```{r}
+billionaires <- subset(billionaires, select = -c(rank, name, forbes_id, age_range,
+                                                source, Source.of.Wealth, Residence,
+                                                  Citizenship, Age, Education))
+
+str(billionaires)
+```
+
+5.
+a.
+```{r}
+country_counts <- sort(table(billionaires$country), decreasing = TRUE)
+top_8_countries <- names(head(country_counts, 8))
+
+
+billionaires_top_countries <- billionaires[billionaires$country %in% top_8_countries, ]
+
+str(billionaires_top_countries)
+
+```
+b.
+```{r}
+
+industry_counts <- sort(table(billionaires_top_countries$industry), decreasing = TRUE)
+top_5_industries <- names(head(industry_counts, 5))
+
+billionaires_top_industries <-  billionaires_top_countries[billionaires_top_countries$industry %in% top_5_industries, ]
+
+str(billionaires_top_industries)
+
+```
+c.
+```{r}
+
+marital_status_counts <- sort(table(billionaires_top_industries$Marital.Status), decreasing = TRUE)
+top_7_marital_statuses <- names(head(marital_status_counts, 7))
+
+billionaires_new <- billionaires_top_industries[billionaires_top_industries$Marital.Status %in% top_7_marital_statuses, ]
+
+
+str(billionaires_new)
+
+```
+
+6.
+```{r}
+
+billionaires_new <- droplevels(billionaires_new)
+
+str(billionaires_new)
+
+```
+7. There are 1087 rows in the dataset.
+
+8.
+```{r}
+set.seed(1626)
+
+training_size <- floor(0.60 * nrow(billionaires_new))
+
+training_indices <- sample(seq_len(nrow(billionaires_new)), size = training_size)
+
+training_set <- billionaires_new[training_indices, ]
+validation_set <- billionaires_new[-training_indices, ]
+```
+
+
+```{r}
+str(training_set)
+```
+
+
+```{r}
+str(validation_set)
+
+```
+9.
+```{r}
+install.packages("rpart")
+library(rpart)
+```
+```{r}
+tree_model <- rpart(industry ~ ., data = training_set, method = "class")
+
+print(tree_model)
+```
+
+
+10.
+```{r}
+install.packages("rpart.plot")
+library(rpart.plot)
+```
+```{r}
+rpart.plot(tree_model, cex = 0.6, fallen.leaves = TRUE, varlen = 0)
+```
+a.
+```{r}
+rpart.plot(tree_model, type = 4, extra = 104, under = TRUE, cex = 0.6, 
+           fallen.leaves = FALSE, varlen = 0, main = "Classification Tree")
+
+```
+b.
+```{r}
+
+prp(tree_model, 
+    type = 0, 
+    extra = 6, 
+    branch = 0.5, 
+    box.palette = "RdBu", 
+    shadow.col = "gray", 
+    nn = TRUE, 
+    yesno = 2, 
+    under = TRUE)
+
+```
+c.
+Out of the three graphical models, I like the last one the most. It is easier to understand. The first tree graph is quite hard to read and the texts are overlapping. The second one is relatively easier to read but still has a lot of information and the texts are overlapping. 
+
+The last tree graph clearly shows the root node that starts with the 'country' variable, splitting the data into subsets based on whether the billionaires are from Canada and the United States (Cnd, UnS) or other countries. It goes on splitting even more from there. 
+The terminal nodes are easily distinguishable and the yes/no helps understand the decision node. 
+
+
+7.
+At the root node of the classification tree, a split was made based on the 'country' variable. The rule applied for this split segregated the billionaires into two groups: those from Canada and the United States (labeled as 'Cnd,UnS') and those from all other countries. The significance of the root node lies in its role as the initial and most significant decision point of the tree, which partitions the data set into subsets that are most distinct from each other based on the outcome variable, 'industry', in this context. This primary bifurcation typically reflects the variable that provides the highest information gain at the outset of the classification process.
+
+8.
+In the provided model diagram, not all input variables from the dataset appeared. This is common in tree-based models because the algorithm selects only those variables that contribute most effectively to partitioning the data with respect to the target variable. The decision tree algorithm, typically based on measures like information gain, Gini impurity, or chi-squared, will choose splits that provide the most significant differentiation of the outcome variable at each step. Variables that do not contribute to an effective split, or do not improve the predictive power of the tree, are not included in the final model. This results in a more parsimonious and interpretable model, avoiding the inclusion of unnecessary complexity that does not enhance the model's performance.
+
+9.
+One rule generated by the tree regarding the industry classification of a billionaire can be traced from the root node to one of the terminal nodes as follows:
+
+If a billionaire is from either Canada or the United States (as indicated by the split at the root node on the 'country' variable), and if their age is 45 years or older (based on the subsequent age split), and they did not drop out of school (indicated by the 'Drop.Out = 0' decision), and they have fewer than 3 children (as per the 'Children < 3' split), then they are most likely to be associated with the 'Finance & Investments' industry.
+
+This path along the tree reflects a combination of demographic and personal attributes that the model has found to be predictive for classifying billionaires in the 'Finance & Investments' industry within the context of the training data.
+
+10.
+```{r}
+
+library(rpart)
+
+overfit_tree_model <- rpart(industry ~ ., data = training_set, method = "class", 
+                            control = rpart.control(cp = 0, minsplit = 2))
+
+
+
+
+```
+```{r}
+
+library(rpart.plot)
+rpart.plot(overfit_tree_model, main = "Overfit Classification Tree")
+```
+
+
+11.
+```{r}
+tree_model_cv <- rpart(industry ~ ., data = training_set, method = "class", 
+                       control = rpart.control(xval = 5))
+
+
+printcp(tree_model_cv)
+```
+
+
+```{r}
+
+plotcp(tree_model_cv)
+
+
+```
+I would select CP = 0.027692 since it has the lowest xerror, but since the error is higher than the root node error, this suggests that the tree might not be improving the prediction over the no-split situation.
+
+
+12.
+```{r}
+
+pruned_tree_model <- rpart(industry ~ ., data = training_set, method = "class", 
+                           control = rpart.control(cp = 0.027692))
+
+```
+
+13
+```{r}
+
+rpart.plot(pruned_tree_model, 
+          type = 0, 
+          extra = 6, 
+          branch = 0.5, 
+          box.palette = "RdBu", 
+          shadow.col = "gray", 
+          nn = TRUE, 
+          yesno = 2, 
+          under = TRUE,
+           cex = 0.6, 
+           main = "Pruned Classification Tree")
+
+
+```
+
+14.a.
+```{r}
+library(caret)
+```
+
+```{r}
+
+training_predictions <- predict(overfit_tree_model, training_set, type = "class")
+training_conf_matrix <- table(training_set$industry, training_predictions)
+
+
+validation_predictions <- predict(overfit_tree_model, validation_set, type = "class")
+validation_conf_matrix <- table(validation_set$industry, validation_predictions)
+
+
+print("Confusion Matrix on Training Set:")
+print(training_conf_matrix)
+
+print("Confusion Matrix on Validation Set:")
+print(validation_conf_matrix)
+
+
+training_confusion_matrix_caret <- confusionMatrix(training_predictions, training_set$industry)
+validation_confusion_matrix_caret <- confusionMatrix(validation_predictions, validation_set$industry)
+
+print("Detailed Confusion Matrix on Training Set:")
+print(training_confusion_matrix_caret)
+
+print("Detailed Confusion Matrix on Validation Set:")
+print(validation_confusion_matrix_caret)
+
+```
+
+
+b.
+```{r}
+
+all_marital_status_levels <- levels(factor(billionaires_new$Marital.Status))
+
+
+training_set$Marital.Status <- factor(training_set$Marital.Status, levels = all_marital_status_levels)
+validation_set$Marital.Status <- factor(validation_set$Marital.Status, levels = all_marital_status_levels)
+
+
+updated_tree_model <- rpart(industry ~ ., data = training_set, method = "class", 
+                            control = rpart.control(cp = 0.027692))
+
+
+validation_predictions <- predict(updated_tree_model, validation_set, type = "class")
+validation_conf_matrix <- table(validation_set$industry, validation_predictions)
+
+
+print(validation_conf_matrix)
+
+
+```
+Fashion & Retail: Out of 73 instances, 20 were correctly classified, but there were significant misclassifications, especially as 'Finance & Investments' and 'Technology'.
+Finance & Investments: Out of 103 instances, 51 were correctly classified. However, a substantial number of instances were misclassified, primarily as 'Technology'.
+Healthcare: None of the 66 instances were correctly classified as 'Healthcare', indicating a complete misclassification.
+Manufacturing: All 89 instances in this category were misclassified, with a large number being classified as 'Finance & Investments' and 'Technology'.
+Technology: Of the 105 instances, 55 were correctly classified, but there were also considerable misclassifications.
+
+Compared to the huge (overfit) tree, which had perfect accuracy on the training set, this optimally-sized tree likely shows a more balanced accuracy between the training and validation sets. This is expected, as an overfit model performs exceptionally well on training data but poorly on validation data.
+The reduction in the gap between training and validation accuracy when moving from the overfit to the optimally-sized model indicates improved generalization, albeit the overall performance might still be lacking.
+
+
+c.
+It is reasonable to expect that the difference between training set accuracy and validation set accuracy would decrease when using a pruned tree for several key reasons related to overfitting and generalization:
+
+1. **Reduction of Overfitting**: Pruning a decision tree typically reduces overfitting, which occurs when a model is too complex and captures the noise in the training data rather than the underlying pattern. An overfit tree performs exceptionally well on the training data but poorly on unseen data (validation set). By pruning the tree, you remove some of the model's complexity, making it less likely to fit the noise and more likely to capture the general trend.
+
+2. **Improved Generalization**: A pruned tree often has improved generalization capabilities. It is designed to perform well not just on the training data but also on new, unseen data. By removing less significant branches, the tree model is encouraged to focus on the most significant splits that have more predictive power, which often leads to better performance on the validation set.
+
+3. **Balance Between Bias and Variance**: Pruning helps in achieving a better balance between bias and variance. An unpruned tree (high variance) tends to have low bias but high variance, leading to large swings in performance between training and validation datasets. Pruning increases the bias slightly but significantly reduces the variance, leading to more consistent performance across different datasets.
+
+4. **Simpler Decision Rules**: Pruned trees have simpler decision rules that are based on the most impactful features. Simpler models are less sensitive to the specific idiosyncrasies of the training data and are more likely to apply well to other datasets.
+
+
+
+
+
+
